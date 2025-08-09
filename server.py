@@ -65,6 +65,7 @@ def start_with_gunicorn():
         "timeout": 0,  # Render restart qilmasligi uchun
     }
     FlaskGunicornApp(bot, options).run()
+
 if __name__ == "__main__":
     os.environ["IS_MASTER_PROCESS"] = "true"
     start_with_gunicorn()

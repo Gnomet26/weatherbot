@@ -69,7 +69,7 @@ def start_with_gunicorn():
 
     options = {
         "bind": f"0.0.0.0:{BASE_PORT}",
-        "workers": 3,  # adjust workers if needed
+        "workers": 1,  # adjust workers if needed
     }
     FlaskGunicornApp(bot, options).run()
 

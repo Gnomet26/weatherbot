@@ -9,13 +9,17 @@ print("hello")
 bot = Flask(__name__)
 
 
-@bot.route(f"/{BOT_TOKEN}", methods = ["POST"])
+@bot.route(f"/{BOT_TOKEN}", methods=["POST"])
 def bot_updates():
-    update = request.get_json()
-    if not update:
-        return {"ok": False}, 400
-    filter_message(update)
-    return {"ok": True}, 200
+    try:
+        update = request.get_json(force=True, silent=True)
+        if not update:
+            return {"ok": False, "error": "Empty request"}, 400
+        filter_message(update)
+        return {"ok": True}, 200
+    except Exception as e:
+        print(f"❌ Xatolik: {e}")
+        return {"ok": False, "error": str(e)}, 500
 
 
 

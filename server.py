@@ -12,20 +12,22 @@ from ngrok_webhook import NgrokClass
 
 stop_flag = False
 
+
+# ---- Signal handling (Ctrl+C yoki SIGTERM) ----
 def handle_stop_signal(signum, frame):
     global stop_flag
     stop_flag = True
-    print("📴 Server to‘xtatish signali qabul qilindi.")
+    print("🛑 Server to‘xtatish signali qabul qilindi.")
     sys.exit(0)
+
 
 signal.signal(signal.SIGINT, handle_stop_signal)
 signal.signal(signal.SIGTERM, handle_stop_signal)
 
+
+# ---- Flask app ----
 bot = Flask(__name__)
 
-@bot.route("/health", methods=["GET"])
-def health():
-    return "OK", 200
 
 @bot.route(f"/{BOT_TOKEN}", methods=["POST"])
 def bot_updates():
@@ -33,8 +35,17 @@ def bot_updates():
     filter_message(update)
     return {"ok": True}
 
-def ngrok_loop(url):
-    send_data = {"url": url}
+
+@bot.route("/health", methods=["GET"])
+def health():
+    """Render health check uchun endpoint"""
+    return "OK", 200
+
+
+# ---- Ngrok va webhook ishga tushirish ----
+def ngrok_loop(webhook_url):
+    """Webhook o‘rnatish va ngrok loop"""
+    send_data = {"url": webhook_url}
     print(f"📡 Webhook URL: {send_data['url']}")
 
     try:
@@ -44,26 +55,35 @@ def ngrok_loop(url):
     except Exception as e:
         print(f"❌ Webhook o‘rnatishda xatolik: {e}")
 
+    # Uzluksiz ishlaydigan loop
+    global stop_flag
     while not stop_flag:
-        print("🔄 Ngrok loop ishlayapti...")
         time.sleep(5)
 
-    print("⏹ Ngrok loop to‘xtadi.")
+    print("🛑 Ngrok loop to‘xtadi.")
 
-def on_startup_once():
+
+def delayed_ngrok():
+    print("ngrok uchun 10 soniya kutish")
+    """Flask ishga tushgandan keyin ngrokni ishga tushirish"""
+    time.sleep(10)  # Flask port ochilishi uchun biroz kutish
     ngrok_object = NgrokClass()
     webhook_url = ngrok_object.webhook_url()
-    threading.Thread(target=ngrok_loop, args=(webhook_url,), daemon=True).start()
+    ngrok_loop(webhook_url)
 
+
+# ---- Gunicorn bilan ishga tushirish ----
 def start_with_gunicorn():
+    # Faqat master process ngrok ishga tushirsin
     if os.environ.get("IS_MASTER_PROCESS") != "false":
-        on_startup_once()
+        threading.Thread(target=delayed_ngrok, daemon=True).start()
 
     options = {
         "bind": f"0.0.0.0:{BASE_PORT}",
-        "workers": 3,  # ishlashga qarab sozlashing mumkin
+        "workers": 1,  # Render uchun 1 worker kifoya
     }
     FlaskGunicornApp(bot, options).run()
+
 
 if __name__ == "__main__":
     os.environ["IS_MASTER_PROCESS"] = "true"
